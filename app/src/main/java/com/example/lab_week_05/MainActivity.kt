@@ -2,6 +2,7 @@ package com.example.lab_week_05
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.example.lab_week_05.api.CatApiService
@@ -11,7 +12,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 
 class MainActivity : AppCompatActivity() {
 
-    // 1. Retrofit instance pakai Moshi
+    // Retrofit instance
     private val retrofit by lazy {
         Retrofit.Builder()
             .baseUrl("https://api.thecatapi.com/v1/")
@@ -19,25 +20,34 @@ class MainActivity : AppCompatActivity() {
             .build()
     }
 
-    // 2. Service instance
+    // Service instance
     private val catApiService by lazy {
         retrofit.create(CatApiService::class.java)
     }
 
-    // 3. Reference ke TextView
+    // UI references
     private val apiResponseView: TextView by lazy {
         findViewById(R.id.api_response)
     }
+
+    private val imageResultView: ImageView by lazy {
+        findViewById(R.id.image_result)
+    }
+
+    // Image loader (pakai Glide)
+    private val imageLoader: ImageLoader by lazy {
+        GlideLoader(this)
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 4. Panggil API
         getCatImageResponse()
     }
 
-    // 5. Function untuk request API
+    // Function untuk request API
     private fun getCatImageResponse() {
         val call = catApiService.searchImages(1, "full")
 
@@ -51,8 +61,15 @@ class MainActivity : AppCompatActivity() {
                 response: Response<List<ImageData>>
             ) {
                 if (response.isSuccessful) {
-                    val images = response.body()
-                    val firstImageUrl = images?.firstOrNull()?.imageUrl ?: "No URL Found"
+                    val imageList = response.body()
+                    val firstImageUrl = imageList?.firstOrNull()?.imageUrl.orEmpty()
+
+                    if (firstImageUrl.isNotBlank()) {
+                        imageLoader.loadImage(firstImageUrl, imageResultView)
+                    } else {
+                        Log.d(MAIN_ACTIVITY, "Missing image URL")
+                    }
+
                     apiResponseView.text =
                         getString(R.string.image_placeholder, firstImageUrl)
                 } else {

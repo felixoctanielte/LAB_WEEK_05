@@ -9,14 +9,20 @@ import com.example.lab_week_05.api.CatApiService
 import com.example.lab_week_05.model.ImageData
 import retrofit2.*
 import retrofit2.converter.moshi.MoshiConverterFactory
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 class MainActivity : AppCompatActivity() {
 
     // Retrofit instance
     private val retrofit by lazy {
+        val moshi = Moshi.Builder()
+            .add(KotlinJsonAdapterFactory()) // ✅ support Kotlin data class
+            .build()
+
         Retrofit.Builder()
             .baseUrl("https://api.thecatapi.com/v1/")
-            .addConverterFactory(MoshiConverterFactory.create())
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }
 
@@ -38,7 +44,6 @@ class MainActivity : AppCompatActivity() {
     private val imageLoader: ImageLoader by lazy {
         GlideLoader(this)
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,16 +67,24 @@ class MainActivity : AppCompatActivity() {
             ) {
                 if (response.isSuccessful) {
                     val imageList = response.body()
-                    val firstImageUrl = imageList?.firstOrNull()?.imageUrl.orEmpty()
 
-                    if (firstImageUrl.isNotBlank()) {
-                        imageLoader.loadImage(firstImageUrl, imageResultView)
+                    // 🔑 Cari image pertama yang punya URL valid
+                    val firstImage = imageList?.firstOrNull { !it.imageUrl.isNullOrBlank() }
+
+                    val imageUrl = firstImage?.imageUrl.orEmpty()
+                    val breedName = firstImage?.breeds?.firstOrNull()?.name ?: "Unknown"
+
+                    if (imageUrl.isNotBlank()) {
+                        imageLoader.loadImage(imageUrl, imageResultView)
+                        Log.d(MAIN_ACTIVITY, "Loaded image: $imageUrl")
                     } else {
-                        Log.d(MAIN_ACTIVITY, "Missing image URL")
+                        Log.w(MAIN_ACTIVITY, "No valid image URL found")
                     }
 
+                    // Update TextView dengan nama breed
                     apiResponseView.text =
-                        getString(R.string.image_placeholder, firstImageUrl)
+                        getString(R.string.breed_placeholder, breedName)
+
                 } else {
                     Log.e(
                         MAIN_ACTIVITY,
